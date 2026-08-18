@@ -4,6 +4,18 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      test-suite:
+        description: 'Select test suite'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - ui
+          - mocking
 jobs:
   test:
     timeout-minutes: 60
@@ -18,9 +30,28 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test
-    - uses: actions/upload-artifact@v4
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          case "${{ inputs.test-suite }}" in
+            api)
+              npx playwright test tests/api
+              ;;
+            ui)
+              npx playwright test tests/ui
+              ;;
+            mocking)
+              npx playwright test tests/mocking
+              ;;
+            all)
+              npx playwright test
+              ;;
+          esac
+        else
+          npx playwright test
+        fi
+    - name: Upload Playwright report
       if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
       with:
         name: playwright-report
         path: playwright-report/
